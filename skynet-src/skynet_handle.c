@@ -28,9 +28,10 @@ struct handle_storage {
 	int name_count;
 	struct handle_name *name;
 };
-
+//存储handle，做快速查找
 static struct handle_storage *H = NULL;
 
+//使用hash表存储，包含使用二次探测解决冲突
 uint32_t
 skynet_handle_register(struct skynet_context *ctx) {
 	struct handle_storage *s = H;

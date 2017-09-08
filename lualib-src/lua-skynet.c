@@ -36,7 +36,9 @@ _cb(struct skynet_context * context, void * ud, int type, int session, uint32_t 
 	int r;
 	int top = lua_gettop(L);
 	if (top == 0) {
+		//将c函数压栈
 		lua_pushcfunction(L, traceback);
+		//将lcallback中保存的lua函数压栈
 		lua_rawgetp(L, LUA_REGISTRYINDEX, _cb);
 	} else {
 		assert(top == 2);
@@ -88,6 +90,7 @@ lcallback(lua_State *L) {
 	int forward = lua_toboolean(L, 2);
 	luaL_checktype(L,1,LUA_TFUNCTION);
 	lua_settop(L,1);
+	//注册表中保存函数
 	lua_rawsetp(L, LUA_REGISTRYINDEX, _cb);
 
 	lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD);

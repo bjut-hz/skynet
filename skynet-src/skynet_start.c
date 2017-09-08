@@ -235,6 +235,7 @@ bootstrap(struct skynet_context * logger, const char * cmdline) {
 	char name[sz+1];
 	char args[sz+1];
 	sscanf(cmdline, "%s %s", name, args);
+	//加载snlua服务
 	struct skynet_context *ctx = skynet_context_new(name, args);
 	if (ctx == NULL) {
 		skynet_error(NULL, "Bootstrap error : %s\n", cmdline);
@@ -253,16 +254,24 @@ skynet_start(struct skynet_config * config) {
 	sigaction(SIGHUP, &sa, NULL);
 
 	if (config->daemon) {
+		//如果配置了后台运行，把程序化为守护进程运行
 		if (daemon_init(config->daemon)) {
 			exit(1);
 		}
 	}
+	//一个skynet集群支持最多255个节点，把harbor编号放至最高8位上
 	skynet_harbor_init(config->harbor);
+	//初始化句柄模块，用于给每个Skynet服务创建一个全局唯一的句柄值
 	skynet_handle_init(config->harbor);
+	//初始化消息队列模块，这是Skynet的主要数据结构
 	skynet_mq_init();
+	//初始化服务动态库加载模块，主要用于加载符合Skynet服务模块接口的动态链接库（.so）
 	skynet_module_init(config->module_path);
+	//初始化定时器模块
 	skynet_timer_init();
+	//初始化网络模块
 	skynet_socket_init();
+	//加载日志模块
 	skynet_profile_enable(config->profile);
 
 	struct skynet_context *ctx = skynet_context_new(config->logservice, config->logger);
@@ -270,7 +279,7 @@ skynet_start(struct skynet_config * config) {
 		fprintf(stderr, "Can't launch %s service\n", config->logservice);
 		exit(1);
 	}
-
+	//bootstrap引导模块，bootstrap默认配置：snlua bootstrap
 	bootstrap(ctx, config->bootstrap);
 
 	start(config->thread);

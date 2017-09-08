@@ -81,6 +81,7 @@ init_cb(struct snlua *l, struct skynet_context *ctx, const char * args, size_t s
 	lua_setfield(L, LUA_REGISTRYINDEX, "LUA_NOENV");
 	luaL_openlibs(L);
 	lua_pushlightuserdata(L, ctx);
+	//把context的实例注册到lua虚拟机的全局注册表中
 	lua_setfield(L, LUA_REGISTRYINDEX, "skynet_context");
 	luaL_requiref(L, "skynet.codecache", codecache , 0);
 	lua_pop(L,1);
@@ -101,6 +102,7 @@ init_cb(struct snlua *l, struct skynet_context *ctx, const char * args, size_t s
 	lua_pushcfunction(L, traceback);
 	assert(lua_gettop(L) == 1);
 
+	//加载并执行loader.lua
 	const char * loader = optstring(ctx, "lualoader", "./lualib/loader.lua");
 
 	int r = luaL_loadfile(L,loader);
@@ -135,7 +137,9 @@ static int
 launch_cb(struct skynet_context * context, void *ud, int type, int session, uint32_t source , const void * msg, size_t sz) {
 	assert(type == 0 && session == 0);
 	struct snlua *l = ud;
+	//清空原来的回调和ud.这个方法里把服务自己在c语言层面的回调函数给注销了，使它不再接收消息，目的是：在lua层重新注册它，把消息通过lua接口来接收。
 	skynet_callback(context, NULL, NULL);
+	//设置各项资源参数，并加载loader.lua
 	int err = init_cb(l, context, msg, sz);
 	if (err) {
 		skynet_command(context, "EXIT", NULL);
@@ -153,6 +157,8 @@ snlua_init(struct snlua *l, struct skynet_context *ctx, const char * args) {
 	const char * self = skynet_command(ctx, "REG", NULL);
 	uint32_t handle_id = strtoul(self+1, NULL, 16);
 	// it must be first message
+	//给自己发送一条消息，内容为args字符串。当snlua服务的消息队列被push进全局的消息队列后，
+	//snlua服务收到的第一条消息就是刚才发送的args消息，此时就会调用launch_ch回调函数进行处理
 	skynet_send(ctx, 0, handle_id, PTYPE_TAG_DONTCOPY,0, tmp, sz);
 	return 0;
 }
@@ -177,6 +183,7 @@ lalloc(void * ud, void *ptr, size_t osize, size_t nsize) {
 	return skynet_lalloc(ptr, osize, nsize);
 }
 
+//创建一个lua虚拟机
 struct snlua *
 snlua_create(void) {
 	struct snlua * l = skynet_malloc(sizeof(*l));

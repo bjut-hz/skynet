@@ -125,9 +125,12 @@ main(int argc, char *argv[]) {
 	}
 
 	luaS_initshr();
+	//会使用到GNODE结构，每个线程会含有线程特有数据。
 	skynet_globalinit();
+	//初始化lua环境，创建一个全局数据结构struct skynet_env *E，并初始化结构的值
 	skynet_env_init();
 
+	//忽略SIGPIPE信号处理
 	sigign();
 
 	struct skynet_config config;

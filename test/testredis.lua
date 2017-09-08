@@ -62,6 +62,6 @@ skynet.start(function()
 	end
 
 	db:disconnect()
---	skynet.exit()
+	skynet.exit()
 end)
 

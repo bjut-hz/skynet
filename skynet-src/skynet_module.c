@@ -98,7 +98,7 @@ open_sym(struct skynet_module *mod) {
 
 	return mod->init == NULL;
 }
-
+//在已加载模块中查找目标模块，如果未含有则加载。
 struct skynet_module * 
 skynet_module_query(const char * name) {
 	struct skynet_module * result = _query(name);

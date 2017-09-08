@@ -3,6 +3,7 @@
 
 struct skynet_context;
 
+//每个模块默认实现的4个接口，函数约定
 typedef void * (*skynet_dl_create)(void);
 typedef int (*skynet_dl_init)(void * inst, struct skynet_context *, const char * parm);
 typedef void (*skynet_dl_release)(void * inst);

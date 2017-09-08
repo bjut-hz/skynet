@@ -40,6 +40,8 @@
 
 #endif
 
+//skynet_context是每个actor的骨骼。每个actor由module和skynet_context组成，每个module实现不同的功能
+//skynet_context主要承载整个框架的调度逻辑
 struct skynet_context {
 	void * instance;
 	struct skynet_module * mod;
@@ -121,14 +123,23 @@ drop_message(struct skynet_message *msg, void *ud) {
 	// report error to the message source
 	skynet_send(NULL, source, msg->source, PTYPE_ERROR, 0, NULL, 0);
 }
+/*
+	该函数主要创建一个skynet_context。
+1、加载sm对象，调用create取得用户对象.
 
+2、分配sc,注册handle,分配信箱.
+
+3、调用init初始化用户对象.
+
+之所以到处有一些CALLINGCHECK宏，主要是为了检测调度是否正确，因为skynet调度时，每个actor只会被一个线程持有调度，也就是消息处理是单线程的。
+*/
 struct skynet_context * 
 skynet_context_new(const char * name, const char *param) {
 	struct skynet_module * mod = skynet_module_query(name);
 
 	if (mod == NULL)
 		return NULL;
-
+	//调用模块的create约定，生成一个模块的实例
 	void *inst = skynet_module_instance_create(mod);
 	if (inst == NULL)
 		return NULL;
@@ -152,12 +163,15 @@ skynet_context_new(const char * name, const char *param) {
 	ctx->profile = G_NODE.profile;
 	// Should set to 0 first to avoid skynet_handle_retireall get an uninitialized handle
 	ctx->handle = 0;	
+	//给实例注册一个handle
 	ctx->handle = skynet_handle_register(ctx);
+	//未生成的actor绑定一个信箱
 	struct message_queue * queue = ctx->queue = skynet_mq_create(ctx->handle);
 	// init function maybe use ctx->handle, so it must init at last
 	context_inc();
 
 	CHECKCALLING_BEGIN(ctx)
+	//调用模块的初始化方法
 	int r = skynet_module_instance_init(mod, inst, ctx, param);
 	CHECKCALLING_END(ctx)
 	if (r == 0) {
@@ -165,6 +179,7 @@ skynet_context_new(const char * name, const char *param) {
 		if (ret) {
 			ctx->init = true;
 		}
+		//将实例的消息队列加到全局的消息队列中，这样才能收到消息回调
 		skynet_globalmq_push(queue);
 		if (ret) {
 			skynet_error(ret, "LAUNCH %s %s", name, param ? param : "");
