@@ -222,6 +222,7 @@ start(int thread) {
 		create_thread(&pid[i+3], thread_worker, &wp[i]);
 	}
 
+	//主线程等待启动的线程结束，整个skynet进程内共有1+3+thread个线程
 	for (i=0;i<thread+3;i++) {
 		pthread_join(pid[i], NULL); 
 	}
