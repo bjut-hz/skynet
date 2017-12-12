@@ -362,6 +362,7 @@ luaopen_skynet_core(lua_State *L) {
 		{ "error", lerror },
 		{ "tostring", ltostring },
 		{ "harbor", lharbor },
+		//pack可以把多个lua类型的参数打包
 		{ "pack", luaseri_pack },
 		{ "unpack", luaseri_unpack },
 		{ "packstring", lpackstring },

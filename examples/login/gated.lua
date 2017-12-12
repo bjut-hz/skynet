@@ -10,7 +10,7 @@ local username_map = {}
 local internal_id = 0
 
 -- login server disallow multi login, so login_handler never be reentry
--- call by login server
+-- call by login server，注册进msgserver作为login调用
 function server.login_handler(uid, secret)
 	if users[uid] then
 		error(string.format("%s is already login", uid))

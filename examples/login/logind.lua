@@ -35,6 +35,7 @@ function server.login_handler(server, uid, secret)
 		error(string.format("user %s is already online", uid))
 	end
 
+	-- 调用gateserver的接口，获取subid
 	local subid = tostring(skynet.call(gameserver, "lua", "login", uid, secret))
 	user_online[uid] = { address = gameserver, subid = subid , server = server}
 	return subid

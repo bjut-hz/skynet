@@ -646,6 +646,7 @@ end
 
 function skynet.start(start_func)
 	c.callback(skynet.dispatch_message)
+	--使用timeout是为了消息驱动
 	skynet.timeout(0, function()
 		skynet.init_service(start_func)
 	end)

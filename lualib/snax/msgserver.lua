@@ -83,6 +83,7 @@ skynet.register_protocol {
 }
 
 local user_online = {}
+-- handshake功能,第一次连接，需要客户端提供信息
 local handshake = {}
 local connection = {}
 
@@ -129,6 +130,7 @@ function server.start(conf)
 	local handler = {}
 
 	local CMD = {
+		-- loginserver会调用该接口，获取subid
 		login = assert(conf.login_handler),
 		logout = assert(conf.logout_handler),
 		kick = assert(conf.kick_handler),
@@ -141,6 +143,7 @@ function server.start(conf)
 
 	function handler.open(source, gateconf)
 		local servername = assert(gateconf.servername)
+		-- 向loginserver注册
 		return conf.register_handler(servername)
 	end
 
@@ -165,6 +168,7 @@ function server.start(conf)
 
 	-- atomic , no yield
 	local function do_auth(fd, message, addr)
+		-- 第一次握手时,客户端传过来请求编号
 		local username, index, hmac = string.match(message, "([^:]*):([^:]*):([^:]*)")
 		local u = user_online[username]
 		if u == nil then
@@ -183,6 +187,7 @@ function server.start(conf)
 			return "401 Unauthorized"
 		end
 
+		-- version只在此处赋值，其它情况下不变
 		u.version = idx
 		u.fd = fd
 		u.ip = addr
@@ -218,6 +223,7 @@ function server.start(conf)
 			local max = 0
 			local response = u.response
 			for k,p in pairs(response) do
+				-- p[1]为nil说明请求已经回复过了
 				if p[1] == nil then
 					-- request complete, check expired
 					if p[4] < expired_number then
@@ -244,8 +250,10 @@ function server.start(conf)
 			if p[3] == u.version then
 				local last = u.response[session]
 				u.response[session] = nil
+				-- 此时session已经发送过，使p=nil，重新处理该请求。
 				p = nil
 				if last[2] == nil then
+					-- session重复的请求而且没有得到回应还继续请求,此时报错
 					local error_msg = string.format("Conflict session %s", crypt.hexencode(session))
 					skynet.error(error_msg)
 					error(error_msg)
@@ -253,10 +261,15 @@ function server.start(conf)
 			end
 		end
 
+		-- 请求号为session的第一次请求，p为nil
 		if p == nil then
+			-- p是table，p[1] = fd, p[2]:result, p[3]:version, p[4]:index
 			p = { fd }
 			u.response[session] = p
+
+			-- 调用该接口期间，会有请求继续发过来。
 			local ok, result = pcall(conf.request_handler, u.username, message)
+			-- result是skynet.tostring后的结果
 			-- NOTICE: YIELD here, socket may close.
 			result = result or ""
 			if not ok then
@@ -284,6 +297,7 @@ function server.start(conf)
 		-- the return fd is p[1] (fd may change by multi request) check connect
 		fd = p[1]
 		if connection[fd] then
+			-- socket发送结果
 			socketdriver.send(fd, p[2])
 		end
 		p[1] = nil
@@ -305,6 +319,7 @@ function server.start(conf)
 	function handler.message(fd, msg, sz)
 		local addr = handshake[fd]
 		if addr then
+			--　第一个包为handshake,需要验证
 			auth(fd,addr,msg,sz)
 			handshake[fd] = nil
 		else
