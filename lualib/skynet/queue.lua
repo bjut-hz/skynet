@@ -14,6 +14,7 @@ function skynet.queue()
 		if ref == 0 then
 			current_thread = table.remove(thread_queue,1)
 			if current_thread then
+				-- 唤醒被让出执行流的协程，与skynet.wait()相对应
 				skynet.wakeup(current_thread)
 			end
 		end
@@ -23,6 +24,7 @@ function skynet.queue()
 
 	return function(f, ...)
 		local thread = coroutine.running()
+		-- 如果启动了新的协程，保存并让出该执行流
 		if current_thread and current_thread ~= thread then
 			table.insert(thread_queue, thread)
 			skynet.wait()

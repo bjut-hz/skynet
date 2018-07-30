@@ -12,6 +12,7 @@ local collect_tick = 600
 
 local function newobj(name, tbl)
 	assert(pool[name] == nil)
+	-- get a lightuserdata
 	local cobj = sharedata.host.new(tbl)
 	sharedata.host.incref(cobj)
 	local v = { value = tbl , obj = cobj, watch = {} }
