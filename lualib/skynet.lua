@@ -193,6 +193,7 @@ function suspend(co, result, command, param, param2)
 			session_coroutine_address[co] = nil
 			session_coroutine_tracetag[co] = nil
 		end
+		skynet.fork(function() end)	-- trigger command "SUSPEND"
 		error(debug.traceback(co,tostring(command)))
 	end
 	if command == "SUSPEND" then
@@ -438,6 +439,12 @@ function skynet.ret(msg, sz)
 	return ret
 end
 
+function skynet.context()
+	local co_session = session_coroutine_id[running_thread]
+	local co_address = session_coroutine_address[running_thread]
+	return co_session, co_address
+end
+
 function skynet.ignoreret()
 	-- We use session for other uses
 	session_coroutine_id[running_thread] = nil
@@ -539,10 +546,14 @@ function skynet.dispatch_unknown_response(unknown)
 end
 
 function skynet.fork(func,...)
-	local args = table.pack(...)
-	local co = co_create(function()
-		func(table.unpack(args,1,args.n))
-	end)
+	local n = select("#", ...)
+	local co
+	if n == 0 then
+		co = co_create(func)
+	else
+		local args = { ... }
+		co = co_create(function() func(table.unpack(args,1,n)) end)
+	end
 	table.insert(fork_queue, co)
 	return co
 end
@@ -778,6 +789,14 @@ function skynet.stat(what)
 end
 
 function skynet.task(ret)
+	if type(ret) == "number" then
+		local co = session_id_coroutine[ret]
+		if co then
+			return debug.traceback(co)
+		else
+			return "No session"
+		end
+	end
 	local t = 0
 	for session,co in pairs(session_id_coroutine) do
 		if ret then
