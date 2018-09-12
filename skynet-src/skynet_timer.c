@@ -48,8 +48,8 @@ struct timer {
 	struct link_list t[4][TIME_LEVEL];
 	struct spinlock lock;
 	uint32_t time;
-	uint32_t starttime;
-	uint64_t current;
+	uint32_t starttime;//second
+	uint64_t current;//0.01 second
 	uint64_t current_point;
 };
 
@@ -73,10 +73,10 @@ link(struct link_list *list,struct timer_node *node) {
 
 static void
 add_node(struct timer *T,struct timer_node *node) {
-	uint32_t time=node->expire;
-	uint32_t current_time=T->time;
+	uint32_t time=node->expire; // 考虑到time溢出的时候，此时，该节点会被放在t[3][0]处的链表中。因此，在T->time为0时，需要重新移动该处的节点
+	uint32_t current_time=T->time; 
 	
-	if ((time|TIME_NEAR_MASK)==(current_time|TIME_NEAR_MASK)) {
+	if ((time|TIME_NEAR_MASK)==(current_time|TIME_NEAR_MASK)) { // 只有低8位不一样，因此可以放入到第一个级别。
 		link(&T->near[time&TIME_NEAR_MASK],node);
 	} else {
 		int i;
@@ -94,7 +94,7 @@ add_node(struct timer *T,struct timer_node *node) {
 
 static void
 timer_add(struct timer *T,void *arg,size_t sz,int time) {
-	struct timer_node *node = (struct timer_node *)skynet_malloc(sizeof(*node)+sz);
+	struct timer_node *node = (struct timer_node *)skynet_malloc(sizeof(*node)+sz); // 数据布局更紧凑，timer_event与timer_node连续存放
 	memcpy(node+1,arg,sz);
 
 	SPIN_LOCK(T);
@@ -119,12 +119,12 @@ static void
 timer_shift(struct timer *T) {
 	int mask = TIME_NEAR;
 	uint32_t ct = ++T->time;
-	if (ct == 0) {
+	if (ct == 0) { // 溢出的时候，特殊处理
 		move_list(T, 3, 0);
 	} else {
 		uint32_t time = ct >> TIME_NEAR_SHIFT;
 		int i=0;
-
+		// 判断是否处于不同级别的周期临界上
 		while ((ct & (mask-1))==0) {
 			int idx=time & TIME_LEVEL_MASK;
 			if (idx!=0) {
@@ -164,7 +164,7 @@ timer_execute(struct timer *T) {
 		struct timer_node *current = link_clear(&T->near[idx]);
 		SPIN_UNLOCK(T);
 		// dispatch_list don't need lock T
-		dispatch_list(current);
+		dispatch_list(current);// current 链表的第一个元素，该函数会把这个链表的所有节点都处理完毕
 		SPIN_LOCK(T);
 	}
 }
@@ -246,6 +246,7 @@ systime(uint32_t *sec, uint32_t *cs) {
 #endif
 }
 
+// centisecond: 1/100 second, 单位：百分之1秒
 static uint64_t
 gettime() {
 	uint64_t t;
@@ -274,7 +275,7 @@ skynet_updatetime(void) {
 		TI->current_point = cp;
 		TI->current += diff;
 		int i;
-		for (i=0;i<diff;i++) {
+		for (i=0;i<diff;i++) { // 单位10ms，10ms tick一次
 			timer_update(TI);
 		}
 	}

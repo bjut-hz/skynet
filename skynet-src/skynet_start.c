@@ -133,7 +133,7 @@ thread_timer(void *p) {
 		skynet_updatetime();
 		CHECK_ABORT
 		wakeup(m,m->count-1);
-		usleep(2500);
+		usleep(2500);//2.5ms
 		if (SIG) {
 			signal_hup();
 			SIG = 0;
