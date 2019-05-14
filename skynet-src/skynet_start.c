@@ -33,7 +33,7 @@ struct worker_parm {
 	int weight;
 };
 
-static int SIG = 0;
+static volatile int SIG = 0;
 
 static void
 handle_hup(int signal) {
@@ -281,6 +281,9 @@ skynet_start(struct skynet_config * config) {
 		fprintf(stderr, "Can't launch %s service\n", config->logservice);
 		exit(1);
 	}
+
+	skynet_handle_namehandle(skynet_context_handle(ctx), "logger");
+	
 	//bootstrap引导模块，bootstrap默认配置：snlua bootstrap
 	bootstrap(ctx, config->bootstrap);
 
